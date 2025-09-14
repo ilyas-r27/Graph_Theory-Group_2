@@ -255,12 +255,11 @@ print_euler_result(nodes3, edges3)
 ![](https://i.imgur.com/ePwfHTZ.png)
 ![](https://i.imgur.com/kTN5UlG.png)
 ![](https://i.imgur.com/39lo9ez.png)
-```
 
-# Report: Fleury's Algorithm for Directed Graphs (Full Code, English Version)
 
-This document explains the implementation of **Fleury’s Algorithm** for **directed graphs**, along with supporting functions.  
-All code is provided in **full** without abbreviation.
+
+
+# Fleury’s Algorithm (Directed)
 
 ---
 
