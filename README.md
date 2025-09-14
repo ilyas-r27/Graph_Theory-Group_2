@@ -257,3 +257,233 @@ print_euler_result(nodes3, edges3)
 ![](https://i.imgur.com/39lo9ez.png)
 ```
 
+# Report: Fleury's Algorithm for Directed Graphs (Full Code, English Version)
+
+This document explains the implementation of **Fleury’s Algorithm** for **directed graphs**, along with supporting functions.  
+All code is provided in **full** without abbreviation.
+
+---
+
+## 1) Typing Setup and Node/Edge Definitions
+The following code sets up type aliases and basic utilities for graph representation.
+```python
+from collections import deque
+from typing import List, Tuple, Dict, Any, Optional
+
+Node = Any
+Edge = Tuple[Node, Node]
+Adj  = Dict[Node, List[Node]]
+```
+**Explanation:**  
+- `deque` is used for BFS.  
+- Type hints from `typing` improve clarity.  
+- Aliases: `Node` (graph vertex), `Edge` (directed pair `(u, v)`), `Adj` (adjacency list).
+
+---
+
+## 2) Directed Graph Structure
+This section builds a directed adjacency list and provides degree/connectivity helpers.
+```python
+def build_adj_directed(nodes: List[Node], edges: List[Edge]) -> Adj:
+    adj: Adj = {v: [] for v in nodes}
+    for u, v in edges:
+        if u not in adj: adj[u] = []
+        if v not in adj: adj[v] = []
+        adj[u].append(v)
+    return adj
+
+def indegrees(adj: Adj) -> Dict[Node, int]:
+    indeg = {v: 0 for v in adj}
+    for u in adj:
+        for v in adj[u]:
+            indeg[v] += 1
+    return indeg
+
+def undirected_view(adj: Adj) -> Dict[Node, List[Node]]:
+    und: Dict[Node, List[Node]] = {v: [] for v in adj}
+    for u in adj:
+        for v in adj[u]:
+            und[u].append(v)
+            und[v].append(u)
+    return und
+```
+**Explanation:**  
+- `build_adj_directed`: constructs adjacency list for a directed graph.  
+- `indegrees`: computes in-degree of each vertex.  
+- `undirected_view`: creates an undirected view of the graph (useful for weak connectivity checks).
+
+---
+
+## 3) Side Operations & Reachability
+Utility functions for modifying arcs and testing path existence with BFS.
+```python
+def erase_arc(adj: Adj, u: Node, v: Node) -> None:
+    adj[u].remove(v)
+
+def add_arc(adj: Adj, u: Node, v: Node) -> None:
+    adj[u].append(v)
+
+def exists_path(u: Node, v: Node, adj: Adj) -> bool:
+    if u == v:
+        return True
+    seen = {u}
+    q = deque([u])
+    while q:
+        x = q.popleft()
+        for y in adj[x]:
+            if y == v:
+                return True
+            if y not in seen:
+                seen.add(y)
+                q.append(y)
+    return False
+```
+**Explanation:**  
+- `erase_arc` and `add_arc` modify the adjacency list by removing/adding a directed edge.  
+- `exists_path`: checks reachability from `u` to `v` using BFS.
+
+---
+
+## 4) Directed Euler Rules & Fleury’s Algorithm
+Implements the rules for Eulerian paths/circuits in directed graphs and the Fleury algorithm itself.
+```python
+def has_isolated_directed(adj: Adj) -> bool:
+    indeg = indegrees(adj)
+    return any((len(adj[v]) + indeg[v]) == 0 for v in adj)
+
+def connected_over_all_nodes_directed(adj: Adj) -> bool:
+    m = sum(len(adj[v]) for v in adj)
+    if m == 0:
+        return False
+    if has_isolated_directed(adj):
+        return False
+    und = undirected_view(adj)
+    start = sorted(und.keys())[0]
+    seen = {start}
+    q = deque([start])
+    while q:
+        x = q.popleft()
+        for y in und[x]:
+            if y not in seen:
+                seen.add(y)
+                q.append(y)
+    return len(seen) == len(und)
+
+def degree_balance(adj: Adj) -> Dict[Node, int]:
+    indeg = indegrees(adj)
+    return {v: len(adj[v]) - indeg[v] for v in adj}
+
+def pick_start_vertex(adj: Adj) -> Optional[Node]:
+    bal = degree_balance(adj)
+    starts = [v for v, b in bal.items() if b == 1]
+    ends   = [v for v, b in bal.items() if b == -1]
+    zeros  = [v for v, b in bal.items() if b == 0]
+    if len(starts) == 1 and len(ends) == 1 and len(starts) + len(ends) + len(zeros) == len(adj):
+        return starts[0]
+    if len(starts) == 0 and len(ends) == 0 and len(zeros) == len(adj):
+        nonempty = [v for v in adj if len(adj[v]) > 0]
+        return min(nonempty) if nonempty else None
+    return None
+
+def is_cut_arc(adj: Adj, u: Node, v: Node) -> bool:
+    erase_arc(adj, u, v)
+    ok = exists_path(u, v, adj)
+    add_arc(adj, u, v)
+    return not ok
+
+def fleury_euler_path_directed(nodes: List[Node], edges: List[Edge]) -> Optional[List[Node]]:
+    adj = build_adj_directed(nodes, edges)
+    if not connected_over_all_nodes_directed(adj):
+        return None
+    start = pick_start_vertex(adj)
+    if start is None:
+        return None
+    cur = start
+    path = [cur]
+    edges_left = sum(len(adj[v]) for v in adj)
+    while edges_left > 0:
+        nbrs = sorted(adj[cur])
+        if not nbrs:
+            return None
+        if len(nbrs) == 1:
+            nxt = nbrs[0]
+        else:
+            nxt = None
+            for w in nbrs:
+                if not is_cut_arc(adj, cur, w):
+                    nxt = w
+                    break
+            if nxt is None:
+                nxt = nbrs[0]
+        erase_arc(adj, cur, nxt)
+        edges_left -= 1
+        cur = nxt
+        path.append(cur)
+    return path
+```
+**Explanation:**  
+- `has_isolated_directed`: checks if any node has indegree+outdegree = 0.  
+- `connected_over_all_nodes_directed`: ensures weak connectivity.  
+- `degree_balance`: computes outdegree − indegree.  
+- `pick_start_vertex`: chooses correct start node based on balance rules.  
+- `is_cut_arc`: checks if removing an edge disconnects reachability.  
+- `fleury_euler_path_directed`: the main Fleury’s Algorithm, building an Eulerian path if possible.
+
+---
+
+## 5) Result Checker
+Wrapper for running the algorithm and printing results.
+```python
+def print_euler_result(nodes: List[Node], edges: List[Edge]) -> None:
+    ans = fleury_euler_path_directed(nodes, edges)
+    if ans is None:
+        print("euler path not found")
+    else:
+        print("Eulerian path:", "-".join(map(str, ans)))
+```
+**Explanation:**  
+- If no Eulerian path is found, prints `"euler path not found"`.  
+- Otherwise, prints the path in a human-readable format.
+
+---
+
+## 6) Examples (Reproducible)
+Examples covering three scenarios: Eulerian circuit, Eulerian path only, and non-Eulerian case.
+```python
+print("Example A (Eulerian circuit):")
+nodesA = [0, 1, 2]
+edgesA = [(0,1), (1,2), (2,0)]
+print_euler_result(nodesA, edgesA)
+
+print("\nExample B (Eulerian path, not circuit):")
+nodesB = [0, 1, 2, 3]
+edgesB = [(0,1), (1,2), (2,0), (0,3)]
+print_euler_result(nodesB, edgesB)
+
+print("\nExample C (Not Eulerian: bad degree balance):")
+nodesC = [0, 1, 2]
+edgesC = [(0,1), (0,1), (1,2)]
+print_euler_result(nodesC, edgesC)
+```
+**Expected output:**  
+- **A** → `Eulerian path: 0-1-2-0` (an Eulerian *circuit*).  
+- **B** → `Eulerian path: 0-1-2-0-3` (a valid path but not a circuit).  
+- **C** → `euler path not found` (degree balance invalid).
+
+---
+
+## 7) Usage Notes
+- Place all functions in a single script or notebook cell.  
+- The algorithm chooses neighbors in sorted order for deterministic results.  
+
+---
+
+# Conclusion
+This implementation demonstrates **Fleury’s Algorithm for directed graphs**:  
+1. Check weak connectivity.  
+2. Verify Eulerian conditions via degree balance.  
+3. Construct Eulerian path/circuit by avoiding cut-arcs when possible.  
+
+The examples validate three outcomes: **Eulerian circuit**, **Eulerian path**, and **non-Eulerian** case.
+
+
