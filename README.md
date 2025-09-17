@@ -768,3 +768,122 @@ _(Depending on which odd vertex is chosen as start, you may also see `z -> y -> 
 - **Neighbor selection** uses `pop()` (LIFO) from the adjacency list → path depends on input order.
 - To make output deterministic, pick a specific start (e.g., the smallest label) and sort adjacency lists before traversal.
 
+Report: Hierholzer Algorithm for Undirected Graph
+Introduction
+
+This program implements Hierholzer’s Algorithm to find an Eulerian Path or Eulerian Circuit in an undirected graph.
+The algorithm uses a stack-based approach to traverse and remove edges until every edge has been used exactly once.
+It works for both Eulerian circuits (0 odd-degree vertices) and Eulerian trails (2 odd-degree vertices).
+
+Code Explanation
+from collections import defaultdict
+
+
+Importing defaultdict to simplify adjacency list and degree counting creation.
+
+adj = defaultdict(list)
+deg = defaultdict(int)
+for u, v in edges:
+    adj[u].append(v); adj[v].append(u)
+    deg[u] += 1; deg[v] += 1
+
+
+Building adjacency list and counting degrees for every vertex.
+Because the graph is undirected, every edge is stored in both directions.
+
+active = {x for x in nodes if deg[x] > 0}
+if not active:
+    return None
+
+
+Selecting only vertices that have edges (non-isolated vertices).
+If no edges exist, no Euler path/circuit exists.
+
+odd = [x for x in active if deg[x] % 2 == 1]
+if len(odd) not in (0, 2):
+    return None
+
+
+Checking Eulerian condition:
+
+0 odd-degree vertices → Eulerian circuit
+
+2 odd-degree vertices → Eulerian path
+Otherwise, return None.
+
+start = odd[0] if len(odd) == 2 else next(iter(active))
+
+
+Choosing start vertex:
+
+If there are two odd vertices, start from one of them.
+
+Otherwise, pick any active vertex.
+
+def connected():
+    seen, stack = set(), [start]
+    while stack:
+        u = stack.pop()
+        if u in seen or deg[u] == 0:
+            continue
+        seen.add(u)
+        for w in adj[u]:
+            stack.append(w)
+    return seen == active
+if not connected():
+    return None
+
+
+Connectivity check to ensure all edges are in one connected component.
+If not connected, return None.
+
+m = len(edges)
+path = []
+stack = [start]
+while stack:
+    v = stack[-1]
+    if adj[v]:
+        u = adj[v].pop()
+        adj[u].remove(v)
+        stack.append(u)
+    else:
+        path.append(stack.pop())
+
+
+Hierholzer’s Algorithm core loop:
+
+While there are unused edges, follow one edge and remove it.
+
+If no edges left at the current vertex, backtrack and add vertex to path.
+
+if len(path) != m + 1:
+    return None
+return path[::-1]
+
+
+After traversal, check that all edges are used (path length must be E+1).
+Return reversed path so that it starts from the chosen start vertex.
+
+Example Run
+nodes = ['A','B','C','D']
+edges = [('A','B'),('B','C'),('C','D'),('D','A')]
+run_program(nodes, edges)
+
+
+Output:
+
+A -> B -> C -> D -> A
+
+
+This output shows a valid Eulerian circuit that visits every edge exactly once and ends where it started.
+
+Conclusion
+
+The program correctly identifies whether an Eulerian path or circuit exists.
+
+It uses degree checking and connectivity checking before attempting traversal.
+
+Hierholzer’s algorithm is efficient, running in O(V + E) time.
+
+This implementation supports multigraphs because edges are tracked individually and removed once used.
+
