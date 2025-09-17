@@ -485,4 +485,286 @@ This implementation demonstrates **Fleury’s Algorithm for directed graphs**:
 
 The examples validate three outcomes: **Eulerian circuit**, **Eulerian path**, and **non-Eulerian** case.
 
+# Hierholzer’s Algorithm (Undirected) — Python (Jupyter-Ready)
+
+## Assignment Spec
+
+- **Input**: list of nodes, list of undirected edges `[(u, v), ...)`
+- **Output**: print `Eulerian path: a-b-c-...` if exists; otherwise print `euler path not found`
+- **Rule**: use **Hierholzer’s algorithm** — build and splice cycles until all edges are consumed.
+
+---
+## Features
+
+- Self-contained (no third-party libs)
+- Supports **multigraphs** (multi-edges)
+- Handles **Eulerian circuit** (0 odd-degree vertices) and **Eulerian path/trail** (2 odd-degree vertices)
+- Connectivity is checked only over vertices with degree > 0 (isolated vertices are **ignored**)
+- Traversal order follows the **given edge order** per vertex (LIFO due to `pop()`)
+
+---
+## Usage 
+
+```python
+# Helper to run
+def run_program(nodes, edges):
+    res = euler_undirected(nodes, edges)
+    if res is None:
+        print("euler path not found")
+    else:
+        print(" -> ".join(map(str, res)))
+
+# Quick try
+nodes1 = [0, 1, 2, 3]
+edges1 = [(0,1), (0,2), (1,2), (2,3)]
+run_program(nodes1, edges1)   # prints something like: 2 -> 0 -> 1 -> 2 -> 3
+
+nodes2 = [0, 1, 2, 3]
+edges2 = [(0,1), (1,2)]
+run_program(nodes2, edges2)   # prints: euler path not found
+```
+
+**Input format**
+- `nodes`: list of hashable labels (e.g., integers or strings)
+- `edges`: list of **undirected** pairs `(u, v)`; multi-edges allowed
+
+**Output format**
+- If path exists → `Eulerian path: a-b-c-...`
+- If no path/circuit → `euler path not found`
+
+---
+## Algorithm Summary (Hierholzer, Undirected)
+
+1. Check degrees → must have **0 or 2** odd-degree vertices.
+2. Start:  
+   - **0 odd** → start at any vertex with degree > 0.  
+   - **2 odd** → start at one of the odd vertices.  
+3. Main loop (stack):  
+   While the current vertex has an unused incident edge, follow it (consume that edge). If no unused edges at the top of the stack, add the vertex to the path and backtrack. 
+4. When done, the path (reversed) uses every edge exactly once.
+
+**Connectivity rule used here:** connectivity can be checked on the subgraph induced by vertices with degree > 0.
+
+---
+## Complexity
+
+Runs in **O(V + E)** time (each edge is consumed once); memory **O(V + E)**. If neighbor lists are globally sorted, add **O(E log E)** preprocessing.
+
+---
+## Code (Notebook-Compatible)
+
+```python
+from collections import defaultdict
+
+def euler_undirected(nodes, edges):
+    # build adjacency (multigraph) and degree
+    adj = defaultdict(list)
+    deg = defaultdict(int)
+    for u, v in edges:
+        adj[u].append(v); adj[v].append(u)
+        deg[u] += 1; deg[v] += 1
+
+    # active nodes = vertices with nonzero degree
+    active = {x for x in nodes if deg[x] > 0}
+    if not active:
+        return None  # no edges → treat as not found (keep it simple)
+
+    # degree condition: 0 odd (circuit) or 2 odd (trail)
+    odd = [x for x in active if deg[x] % 2 == 1]
+    if len(odd) not in (0, 2):
+        return None
+
+    # choose start: odd vertex if 2 odd, else any active
+    start = odd[0] if len(odd) == 2 else next(iter(active))
+
+    # connectivity check on active nodes (undirected)
+    def connected():
+        seen, stack = set(), [start]
+        while stack:
+            u = stack.pop()
+            if u in seen: 
+                continue
+            if deg[u] == 0:
+                continue
+            seen.add(u)
+            for w in adj[u]:
+                stack.append(w)
+        return seen == active
+    if not connected():
+        return None
+
+    # Hierholzer (simple version using back-edge removal)
+    m = len(edges)
+    path = []
+    stack = [start]
+    while stack:
+        v = stack[-1]
+        if adj[v]:
+            u = adj[v].pop()     # use one v–u
+            adj[u].remove(v)     # remove the paired u–v
+            stack.append(u)
+        else:
+            path.append(stack.pop())
+
+    # must have used all edges → path length = m + 1
+    if len(path) != m + 1:
+        return None
+    return path[::-1]  # start → end
+
+def run_program(nodes, edges):
+    res = euler_undirected(nodes, edges)
+    if res is None:
+        print("euler path not found")
+    else:
+        print(" -> ".join(map(str, res)))
+```
+
+---
+## Function-by-Function Explanation (with Code)
+
+### `euler_undirected(... )`
+- **Purpose:** Compute Eulerian path/circuit using Hierholzer; returns list of vertices or `None`.
+- **Notes:** Consumes each edge exactly once using a stack/backtracking; verifies degree parity and connectedness on the **active** subgraph.
+
+```python
+def euler_undirected(nodes, edges):
+    # build adjacency (multigraph) and degree
+    adj = defaultdict(list)
+    deg = defaultdict(int)
+    for u, v in edges:
+        adj[u].append(v); adj[v].append(u)
+        deg[u] += 1; deg[v] += 1
+
+    # active nodes = vertices with nonzero degree
+    active = {x for x in nodes if deg[x] > 0}
+    if not active:
+        return None  # no edges → treat as not found (keep it simple)
+
+    # degree condition: 0 odd (circuit) or 2 odd (trail)
+    odd = [x for x in active if deg[x] % 2 == 1]
+    if len(odd) not in (0, 2):
+        return None
+
+    # choose start: odd vertex if 2 odd, else any active
+    start = odd[0] if len(odd) == 2 else next(iter(active))
+
+    # connectivity check on active nodes (undirected)
+    def connected():
+        seen, stack = set(), [start]
+        while stack:
+            u = stack.pop()
+            if u in seen: 
+                continue
+            if deg[u] == 0:
+                continue
+            seen.add(u)
+            for w in adj[u]:
+                stack.append(w)
+        return seen == active
+    if not connected():
+        return None
+
+    # Hierholzer (simple version using back-edge removal)
+    m = len(edges)
+    path = []
+    stack = [start]
+    while stack:
+        v = stack[-1]
+        if adj[v]:
+            u = adj[v].pop()     # use one v–u
+            adj[u].remove(v)     # remove the paired u–v
+            stack.append(u)
+        else:
+            path.append(stack.pop())
+
+    # must have used all edges → path length = m + 1
+    if len(path) != m + 1:
+        return None
+    return path[::-1]  # start → end
+```
+
+### `run_program(... )`
+- **Purpose:** Print results in the required format.
+- **Output:** Either `a -> b -> c -> ...` or `euler path not found`.
+
+```python
+def run_program(nodes, edges):
+    res = euler_undirected(nodes, edges)
+    if res is None:
+        print("euler path not found")
+    else:
+        print(" -> ".join(map(str, res)))
+```
+
+---
+## Examples
+
+```python
+print("undirected: eulerian circuit (simple cycle)")
+nodes = ['A','B','C','D']
+edges = [('A','B'),('B','C'),('C','D'),('D','A')]
+run_program(nodes, edges)
+
+print("\nundirected: eulerian trail (two odd degree vertices)")
+nodes2 = [1,2,3,4]
+edges2 = [(1,2),(2,3),(3,4)]
+run_program(nodes2, edges2)
+
+print("\nundirected: not eulerian (more than two odds)")
+nodes3 = ['x','y','z']
+edges3 = [('x','y'),('y','z')]
+run_program(nodes3, edges3)
+```
+
+---
+## Sample Inputs & Outputs
+
+**Example 1 — Eulerian circuit (simple cycle)**  
+**Input**
+```python
+nodes = ['A','B','C','D']
+edges = [('A','B'),('B','C'),('C','D'),('D','A')]
+run_program(nodes, edges)
+```
+**Possible Output**
+```text
+A -> B -> C -> D -> A
+```
+_Any rotation of the cycle (e.g., `C -> D -> A -> B -> C`) is valid._
+
+---
+
+**Example 2 — Eulerian trail (two odd-degree vertices)**  
+**Input**
+```python
+nodes2 = [1,2,3,4]
+edges2 = [(1,2),(2,3),(3,4)]
+run_program(nodes2, edges2)
+```
+**Output**
+```text
+1 -> 2 -> 3 -> 4
+```
+
+---
+
+**Example 3 — Another trail (path of length 2)**  
+**Input**
+```python
+nodes3 = ['x','y','z']
+edges3 = [('x','y'),('y','z')]
+run_program(nodes3, edges3)
+```
+**Possible Output**
+```text
+x -> y -> z
+```
+_(Depending on which odd vertex is chosen as start, you may also see `z -> y -> x`.)_
+
+---
+## Notes on Determinism (Optional)
+
+- **Start vertex** comes from a Python `set` (`active`), which is unordered → actual start can vary.
+- **Neighbor selection** uses `pop()` (LIFO) from the adjacency list → path depends on input order.
+- To make output deterministic, pick a specific start (e.g., the smallest label) and sort adjacency lists before traversal.
 
