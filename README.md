@@ -1,3 +1,10 @@
+| Name | NRP | Class |
+| ---- | --- | ----- |
+| Kenzie Maheswara | 5025241001 | IUP|
+| Palpal Yalmialam  | 5025241002 | IUP |
+| Muhammad Ilyas Rusdi | 5025241007 | IUP |
+| Muhammad Ari Fathan Mahardika | 5025241013 | IUP |
+
 # Graph_Theory-Group_2
 
 # Fleury’s Algorithm (Undirected) — Python (Jupyter-Ready)
